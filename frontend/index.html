@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice-to-Text Meeting Assistant</title>
+    <!-- Google Fonts & Font Awesome Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="dark-theme">
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand-header">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-brain-circuit"></i>
+                </div>
+                <div class="brand-text">
+                    <h2>AuraNote <span class="badge-ai">AI</span></h2>
+                    <p>Voice Meeting Intelligence</p>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-btn active" id="navNewMeeting" onclick="switchView('recorderView')">
+                    <i class="fa-solid fa-microphone-lines"></i>
+                    <span>New Recording</span>
+                </button>
+                <button class="nav-btn" id="navHistory" onclick="switchView('historyView')">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span>Meeting History</span>
+                </button>
+                <button class="nav-btn" id="navActions" onclick="switchView('actionsView')">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Action Items</span>
+                    <span class="badge-count" id="globalActionCount">0</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="stt-status-card">
+                    <div class="status-indicator online"></div>
+                    <div class="status-info">
+                        <span class="status-title">Engine: Whisper AI</span>
+                        <span class="status-subtitle" id="engineStatusText">Speech & NLP Ready</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Container -->
+        <main class="main-content">
+            <!-- Top Navigation Bar -->
+            <header class="top-bar">
+                <div class="page-title">
+                    <h1 id="viewHeading">Live Meeting Recorder & AI Studio</h1>
+                    <p id="viewSubheading">Record live speech or upload audio to generate transcriptions, summaries & action points</p>
+                </div>
+
+                <div class="top-bar-actions">
+                    <button class="btn btn-secondary" onclick="openTextPasteModal()">
+                        <i class="fa-solid fa-file-pen"></i> Paste Notes
+                    </button>
+                    <button class="btn btn-primary" onclick="switchView('recorderView')">
+                        <i class="fa-solid fa-circle-dot"></i> Live Record
+                    </button>
+                </div>
+            </header>
+
+            <!-- View 1: Recorder & Audio Upload View -->
+            <section id="recorderView" class="view-section active">
+                <div class="studio-grid">
+                    <!-- Live Recording Card -->
+                    <div class="glass-card recording-card">
+                        <div class="card-header">
+                            <div class="header-left">
+                                <span class="recording-badge" id="recordingPulse">
+                                    <i class="fa-solid fa-circle"></i> LIVE
+                                </span>
+                                <h3>Microphone Recorder</h3>
+                            </div>
+                            <div class="timer-display" id="recordTimer">00:00:00</div>
+                        </div>
+
+                        <!-- Audio Visualizer Canvas -->
+                        <div class="visualizer-container">
+                            <canvas id="waveformCanvas" width="700" height="130"></canvas>
+                            <div class="visualizer-overlay" id="visualizerPlaceholder">
+                                <i class="fa-solid fa-microphone-lines"></i>
+                                <p>Click "Start Recording" to capture meeting audio</p>
+                            </div>
+                        </div>
+
+                        <!-- Live Live Speech Stream Banner -->
+                        <div class="live-stream-box" id="liveStreamBox">
+                            <i class="fa-solid fa-quote-left"></i>
+                            <span id="liveStreamText">Listening for speech...</span>
+                        </div>
+
+                        <!-- Controls Bar -->
+                        <div class="recorder-controls">
+                            <button class="btn btn-record" id="btnStartRecord" onclick="startRecording()">
+                                <i class="fa-solid fa-microphone"></i> Start Recording
+                            </button>
+                            <button class="btn btn-warning hidden" id="btnPauseRecord" onclick="pauseRecording()">
+                                <i class="fa-solid fa-pause"></i> Pause
+                            </button>
+                            <button class="btn btn-danger hidden" id="btnStopRecord" onclick="stopRecording()">
+                                <i class="fa-solid fa-square"></i> Stop & Process
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- File Upload Card -->
+                    <div class="glass-card upload-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-cloud-arrow-up"></i> Upload Meeting Audio</h3>
+                            <span class="pill-badge">WAV, MP3, M4A, WEBM</span>
+                        </div>
+
+                        <div class="dropzone" id="dropzone" onclick="triggerFileInput()">
+                            <input type="file" id="audioFileInput" accept="audio/*" onchange="handleFileSelected(event)" hidden>
+                            <div class="dropzone-content">
+                                <i class="fa-solid fa-file-audio drop-icon"></i>
+                                <h4>Drag & Drop audio file here</h4>
+                                <p>or click to browse from computer</p>
+                                <span class="file-spec">Supports up to 500MB recordings</span>
+                            </div>
+                        </div>
+
+                        <!-- Upload Options -->
+                        <div class="upload-options">
+                            <div class="form-group">
+                                <label for="meetingTitleInput"><i class="fa-solid fa-heading"></i> Meeting Title (Optional)</label>
+                                <input type="text" id="meetingTitleInput" class="form-control" placeholder="e.g. Q4 Product Roadmap & Sprint Planning">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="whisperModelSelect"><i class="fa-solid fa-sliders"></i> STT Engine Model</label>
+                                <select id="whisperModelSelect" class="form-control">
+                                    <option value="base" selected>Whisper Base (Fast & Balanced)</option>
+                                    <option value="tiny">Whisper Tiny (Ultra Fast)</option>
+                                    <option value="small">Whisper Small (High Precision)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary btn-block" id="btnProcessUpload" onclick="processFileUpload()" disabled>
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Transcribe & Analyze Audio
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Processing Overlay Modal/Spinner -->
+                <div class="processing-overlay hidden" id="processingOverlay">
+                    <div class="glass-card processing-card">
+                        <div class="spinner-ring"></div>
+                        <h3 id="processingStepText">Transcribing Audio with Whisper AI...</h3>
+                        <p>Converting speech to text, detecting speakers, and extracting action items.</p>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="processingProgressBar"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View 2: Meeting Result & Workspace View -->
+            <section id="workspaceView" class="view-section">
+                <!-- Meeting Header Metadata -->
+                <div class="glass-card meeting-banner">
+                    <div class="banner-top">
+                        <div class="banner-title-area">
+                            <span class="meeting-id-pill" id="wsMeetingId">ID: MTG-102</span>
+                            <h2 id="wsMeetingTitle">Product Roadmap & Sprint Planning</h2>
+                            <p class="meeting-date" id="wsMeetingDate"><i class="fa-regular fa-calendar-check"></i> Oct 05, 2026 • 10:30 AM</p>
+                        </div>
+                        <div class="banner-actions">
+                            <button class="btn btn-secondary" onclick="exportMeeting('markdown')">
+                                <i class="fa-solid fa-file-arrow-down"></i> Export MD
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportMeeting('json')">
+                                <i class="fa-solid fa-code"></i> JSON
+                            </button>
+                            <button class="btn btn-primary" onclick="exportMeeting('pdf')">
+                                <i class="fa-solid fa-file-pdf"></i> PDF Summary
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="banner-metrics">
+                        <div class="metric-pill">
+                            <i class="fa-solid fa-clock"></i>
+                            <div>
+                                <span class="metric-val" id="wsDuration">04:25</span>
+                                <span class="metric-lbl">Duration</span>
+                            </div>
+                        </div>
+                        <div class="metric-pill">
+                            <i class="fa-solid fa-list-check"></i>
+                            <div>
+                                <span class="metric-val" id="wsActionCount">3 Tasks</span>
+                                <span class="metric-lbl">Action Points</span>
+                            </div>
+                        </div>
+                        <div class="metric-pill">
+                            <i class="fa-solid fa-smile-beam"></i>
+                            <div>
+                                <span class="metric-val" id="wsSentiment">Productive</span>
+                                <span class="metric-lbl">Meeting Tone</span>
+                            </div>
+                        </div>
+                        <div class="metric-pill">
+                            <i class="fa-solid fa-gauge-high"></i>
+                            <div>
+                                <span class="metric-val" id="wsWPM">142 WPM</span>
+                                <span class="metric-lbl">Speaking Pace</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workspace Split Grid -->
+                <div class="workspace-grid">
+                    <!-- Left: Interactive Timestamped Transcript -->
+                    <div class="glass-card transcript-panel">
+                        <div class="panel-header">
+                            <h3><i class="fa-solid fa-align-left"></i> Speech Transcript</h3>
+                            <div class="transcript-tools">
+                                <div class="search-box">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" id="transcriptSearchInput" placeholder="Search transcript..." oninput="filterTranscriptText()">
+                                </div>
+                                <select id="speakerFilterSelect" onchange="filterSpeakerSegments()">
+                                    <option value="ALL">All Speakers</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Audio Sync Player Bar -->
+                        <div class="audio-player-card" id="audioPlayerContainer">
+                            <audio id="meetingAudioPlayer" controls class="custom-audio-element"></audio>
+                        </div>
+
+                        <!-- Transcript Segment Stream -->
+                        <div class="transcript-stream" id="transcriptStream">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Right: AI Intelligence (Summary, Action Items, Analytics) -->
+                    <div class="glass-card insights-panel">
+                        <div class="tabs-header">
+                            <button class="tab-btn active" onclick="switchInsightTab('summaryTab')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Executive Summary
+                            </button>
+                            <button class="tab-btn" onclick="switchInsightTab('actionsTab')">
+                                <i class="fa-solid fa-list-check"></i> Action Points
+                            </button>
+                            <button class="tab-btn" onclick="switchInsightTab('analyticsTab')">
+                                <i class="fa-solid fa-chart-pie"></i> Analytics
+                            </button>
+                        </div>
+
+                        <div class="tab-body">
+                            <!-- Tab 1: Summary -->
+                            <div id="summaryTab" class="tab-pane active">
+                                <div class="insight-block">
+                                    <h4 class="block-title"><i class="fa-solid fa-quote-left"></i> Executive Summary</h4>
+                                    <div class="summary-box" id="execSummaryContent">
+                                        <!-- Dynamic executive summary text -->
+                                    </div>
+                                </div>
+
+                                <div class="insight-block">
+                                    <h4 class="block-title"><i class="fa-solid fa-circle-check"></i> Key Takeaways & Discussion</h4>
+                                    <ul class="takeaways-list" id="takeawaysList">
+                                        <!-- Dynamic takeaway items -->
+                                    </ul>
+                                </div>
+
+                                <div class="insight-block">
+                                    <h4 class="block-title"><i class="fa-solid fa-gavel"></i> Key Decisions Aligned</h4>
+                                    <div class="decisions-list" id="decisionsList">
+                                        <!-- Dynamic decisions -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab 2: Action Items Board -->
+                            <div id="actionsTab" class="tab-pane">
+                                <div class="actions-header-bar">
+                                    <h4>Action Items & Next Steps</h4>
+                                    <button class="btn btn-sm btn-secondary" onclick="addNewActionItemModal()">
+                                        <i class="fa-solid fa-plus"></i> Add Action
+                                    </button>
+                                </div>
+                                <div class="action-items-list" id="actionItemsContainer">
+                                    <!-- Dynamic Action Items -->
+                                </div>
+                            </div>
+
+                            <!-- Tab 3: Analytics & Speaker Breakdown -->
+                            <div id="analyticsTab" class="tab-pane">
+                                <div class="insight-block">
+                                    <h4 class="block-title"><i class="fa-solid fa-tags"></i> Topic Keywords</h4>
+                                    <div class="keyword-cloud" id="keywordCloud">
+                                        <!-- Dynamic keywords tags -->
+                                    </div>
+                                </div>
+
+                                <div class="insight-block">
+                                    <h4 class="block-title"><i class="fa-solid fa-users"></i> Speaker Participation Share</h4>
+                                    <div class="speaker-stats-container" id="speakerStatsContainer">
+                                        <!-- Dynamic speaker bars -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View 3: History & Past Meetings View -->
+            <section id="historyView" class="view-section">
+                <div class="history-controls">
+                    <div class="search-box wide">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="historySearchInput" placeholder="Search saved meetings by title, transcript or summary..." oninput="filterHistoryCards()">
+                    </div>
+                </div>
+
+                <div class="history-grid" id="historyGridContainer">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </section>
+
+            <!-- View 4: Global Action Items View -->
+            <section id="actionsView" class="view-section">
+                <div class="glass-card">
+                    <div class="panel-header">
+                        <h3><i class="fa-solid fa-list-check"></i> Master Action Items Center</h3>
+                        <p>Track tasks assigned across all meeting sessions</p>
+                    </div>
+                    <div class="action-items-list" id="globalActionItemsContainer">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Paste Text Modal -->
+    <div class="modal-backdrop hidden" id="textPasteModal">
+        <div class="glass-card modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-pen"></i> Paste Meeting Transcript</h3>
+                <button class="close-btn" onclick="closeTextPasteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="pasteTitleInput">Meeting Title</label>
+                    <input type="text" id="pasteTitleInput" class="form-control" placeholder="e.g. Sync Notes with Architecture Team">
+                </div>
+                <div class="form-group">
+                    <label for="pasteTextInput">Transcript Text</label>
+                    <textarea id="pasteTextInput" class="form-control text-area" rows="8" placeholder="Paste full transcript text or meeting notes here..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeTextPasteModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitPastedText()">Process Transcript</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main JavaScript App -->
+    <script src="js/app.js"></script>
+</body>
+</html>
