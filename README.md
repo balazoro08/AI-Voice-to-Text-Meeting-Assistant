@@ -19,16 +19,3 @@ An AI-powered Voice-to-Text Meeting Assistant built with Python, FastAPI, Whispe
 - **NLP & Transformers**: NLTK, TextBlob, Scikit-Learn
 - **Frontend**: HTML5, Vanilla CSS3 (Glassmorphism, Dark Theme), JavaScript (Web Audio API, Canvas, MediaRecorder)
 
-## Quick Start
-
-1. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. Run the application:
-   ```bash
-   python run.py
-   ```
-
-3. Open `http://localhost:8000` in your web browser.
